@@ -8,7 +8,35 @@ $converter = new SQLToLaravelBuilder();
 
 //==========================================================
 
-$sql = 'SELECT * FROM members JOIN details ON members.id = details.members_id';
+$sql = 'SELECT
+       s.start_date,
+           Count(*) as panel_booked_count
+FROM   package_panel AS a
+       JOIN (SELECT Count(*)   AS booked_count_day,
+                    start_date,
+                    manage_panel_id AS manage_panel_id
+             FROM   (SELECT items [manage_panel_id],
+                            [start_date],
+                            [end_date],
+                            [id]
+                     FROM   [booking_slot_detail] t1
+                            OUTER apply dbo.Split(t1.[manage_panel_id], ',')
+                     WHERE  ( start_date_time <= '2022-04-04 06:00:00.000'
+                              AND end_date_time >= '2022-04-04 06:00:00.000' )
+                             OR ( start_date_time < '2022-04-05 23:00:00.000'
+                                  AND end_date_time >= '2022-04-05 23:00:00.000'
+                                )
+                             OR ( '2022-04-04 06:00:00.000' <= start_date_time
+                                  AND '2022-04-05 23:00:00.000' >=
+                                      start_date_time ))
+                    AS a
+             GROUP  BY manage_panel_id,
+                       start_date) AS s
+         ON s.manage_panel_id = a.manage_panel_id
+WHERE  a.package_id = 1042 
+       AND booked_count_day > 3
+GROUP  BY 
+          s.start_date';
 echo $converter->convert($sql);
 // prints
 //          DB::table('members')
